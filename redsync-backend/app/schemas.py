@@ -126,6 +126,8 @@ class HospitalRegisterIn(BaseModel):
     city: str = Field(min_length=2, max_length=100)
     state: str = Field(min_length=2, max_length=100)
     pin: str = Field(pattern=PIN)
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
 
     phone: str = Field(pattern=r"^\d{10,11}$")
     emergency_phone: str = Field(pattern=r"^\d{10,11}$")
@@ -166,6 +168,8 @@ class HospitalRegisterIn(BaseModel):
 
     @model_validator(mode="after")
     def check_hours(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("Provide both map coordinates or leave both blank.")
         self.components = list(dict.fromkeys(self.components))  # remove duplicates
         if not self.open_24h:
             if not self.open_time or not self.close_time:

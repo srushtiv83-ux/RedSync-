@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
-from typing import Optional
+from math import asin, cos, radians, sin, sqrt
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, or_, select
@@ -21,6 +22,17 @@ from app.utils import (
 
 router = APIRouter(prefix="/public", tags=["Public"])
 
+EARTH_RADIUS_KM = 6371.0088
+
+
+def _distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    lat_delta = radians(lat2 - lat1)
+    lon_delta = radians(lon2 - lon1)
+    a = sin(lat_delta / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(lon_delta / 2) ** 2
+    a = min(1.0, max(0.0, a))
+    return 2 * EARTH_RADIUS_KM * asin(sqrt(a))
+
+
 MAX_LICENSE_BYTES = 10 * 1024 * 1024
 TYPE_EXT = {"application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png"}
 SIGNATURES = {".pdf": b"%PDF", ".jpg": b"\xff\xd8\xff", ".png": b"\x89PNG\r\n\x1a\n"}
@@ -40,11 +52,20 @@ def list_hospitals(city: Optional[str] = None, db: Session = Depends(get_db)):
 def find_blood(
     group: Optional[schemas.BloodGroup] = None,
     location: Optional[str] = Query(default=None, max_length=100),
+    latitude: Optional[float] = Query(default=None, ge=-90, le=90),
+    longitude: Optional[float] = Query(default=None, ge=-180, le=180),
+    radius_km: Optional[Literal[5, 10, 15, 20]] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    """Hospitals and their stock. 'location' matches city, hospital name or PIN code."""
+    """Search by text or distance from coordinates, returning only hospitals with stock."""
+    has_coordinates = latitude is not None and longitude is not None
+    if (latitude is None) != (longitude is None) or (radius_km is not None) != has_coordinates:
+        raise HTTPException(422, "Provide latitude, longitude, and radius together.")
+
     query = select(Hospital).where(Hospital.status == "approved")
-    if location and location.strip():
+    if has_coordinates:
+        query = query.where(Hospital.latitude.is_not(None), Hospital.longitude.is_not(None))
+    elif location and location.strip():
         term = f"%{location.strip().lower()}%"
         query = query.where(
             or_(
@@ -53,7 +74,18 @@ def find_blood(
                 Hospital.pin.like(term),
             )
         )
-    hospitals = db.scalars(query.limit(100)).all()
+    hospitals = db.scalars(query.limit(100) if not has_coordinates else query).all()
+
+    distances = {}
+    if has_coordinates:
+        distances = {
+            hospital.id: _distance_km(latitude, longitude, hospital.latitude, hospital.longitude)
+            for hospital in hospitals
+        }
+        hospitals = [
+            hospital for hospital in hospitals
+            if distances[hospital.id] <= radius_km
+        ]
 
     ids = [h.id for h in hospitals] or [0]
     stock = {}
@@ -86,14 +118,31 @@ def find_blood(
                 "emergency_phone": h.emergency_phone,
                 "open_24h": h.open_24h,
                 "stock": items,
+                **({"distance_km": round(distances[h.id], 1)} if has_coordinates else {}),
             }
         )
 
-    if group:
+    if has_coordinates:
+        results.sort(key=lambda result: result["distance_km"])
+    elif group:
         results.sort(key=lambda r: -r["stock"][0]["units"])
     else:
         results.sort(key=lambda r: r["name"].lower())
-    return {"count": len(results), "results": results[:50]}
+    return {
+        "count": len(results),
+        "results": results[:50],
+        "location_data_available": (
+            db.scalar(
+                select(func.count(Hospital.id)).where(
+                    Hospital.status == "approved",
+                    Hospital.latitude.is_not(None),
+                    Hospital.longitude.is_not(None),
+                )
+            ) > 0
+            if has_coordinates
+            else None
+        ),
+    }
 
 
 @router.get("/availability")

@@ -12,9 +12,11 @@ import HospitalLogin from './pages/auth/HospitalLogin'
 import DonorRegister from './pages/auth/DonorRegister'
 import HospitalRegister from './pages/auth/HospitalRegister'
 import DonorDashboard from './pages/donor/DonorDashboard'
+import DonorFAQ from './pages/donor/DonorFAQ'
 import DonorProfile from './pages/donor/DonorProfile'
 import DonorRequests from './pages/donor/DonorRequests'
 import HospitalDashboard from './pages/hospital/HospitalDashboard'
+import PatientFamily from './pages/PatientFamily'
 
 export default function App() {
   return (
@@ -36,6 +38,7 @@ export default function App() {
         <Route element={<DashboardLayout role="donor" />}>
           <Route path="/donor/dashboard" element={<DonorDashboard />} />
           <Route path="/donor/requests" element={<DonorRequests />} />
+          <Route path="/donor/faq" element={<DonorFAQ />} />
           <Route path="/donor/profile" element={<DonorProfile />} />
           <Route path="/donor/alerts" element={<DonorProfile />} />
           <Route path="/donor/*" element={<ComingSoon />} />
@@ -49,6 +52,10 @@ export default function App() {
           <Route path="/hospital/*" element={<ComingSoon />} />
         </Route>
       </Route>
+
+      {/* Patient and family services */}
+      <Route path="/request-blood" element={<PatientFamily />} />
+      <Route path="/find-blood" element={<PatientFamily initialMode="search" />} />
 
       {/* Public pages */}
       <Route element={<Layout />}>

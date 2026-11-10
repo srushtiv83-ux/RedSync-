@@ -88,10 +88,10 @@ export default function CompatibilityChart() {
           Compatibility Guide
         </span>
         <h2 className="font-headline-lg text-headline-lg-mobile sm:text-headline-lg text-on-surface mt-2 tracking-tight">
-          Who Can Donate To Whom
+          Compatibility Blood Guide
         </h2>
         <p className="font-body-lg text-body-lg text-secondary mt-2">
-          Blood compatibility guide for safe donations and emergency transfusions.
+          See who can donate to whom for safe donations and emergency transfusions.
         </p>
       </div>
 

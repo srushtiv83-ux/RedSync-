@@ -9,6 +9,7 @@ const NAV = {
     { to: '/donor/requests', label: 'Urgent Requests' },
     { to: '/donor/camps', label: 'Blood Camps' },
     { to: '/donor/history', label: 'Donation History' },
+    { to: '/donor/faq', label: 'FAQ' },
     { to: '/donor/profile', label: 'My Profile' },
   ],
   hospital: [

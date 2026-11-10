@@ -40,6 +40,8 @@ const initialForm = {
   city: '',
   state: '',
   pin: '',
+  latitude: null,
+  longitude: null,
   phone: '',
   emergencyPhone: '',
   email: '',
@@ -79,6 +81,8 @@ export default function HospitalRegister() {
   const [submitted, setSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
+  const [locationNotice, setLocationNotice] = useState('')
+  const [locating, setLocating] = useState(false)
   const fileRef = useRef(null)
 
   const currentYear = new Date().getFullYear()
@@ -128,6 +132,33 @@ export default function HospitalRegister() {
   const removeFile = () => {
     setFile(null)
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const captureFacilityLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationNotice('Location detection is not supported by this browser.')
+      return
+    }
+
+    setLocating(true)
+    setLocationNotice('')
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        set('latitude', coords.latitude)
+        set('longitude', coords.longitude)
+        setLocationNotice('Facility map location saved for nearby blood searches.')
+        setLocating(false)
+      },
+      (error) => {
+        setLocationNotice(
+          error.code === 1
+            ? 'Location permission was denied. You can continue without map coordinates.'
+            : 'Could not detect the facility location. You can try again or continue without it.',
+        )
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    )
   }
 
   const validate = (s) => {
@@ -198,6 +229,8 @@ export default function HospitalRegister() {
         city: form.city.trim(),
         state: form.state.trim(),
         pin: form.pin,
+        latitude: form.latitude,
+        longitude: form.longitude,
         phone: form.phone,
         emergency_phone: form.emergencyPhone,
         email: form.email.trim(),
@@ -530,6 +563,36 @@ export default function HospitalRegister() {
                           className={inputClass(errors.pin)}
                         />
                       </Field>
+                    </div>
+
+                    <div className="rounded-xl bg-surface-container-low p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <p className="font-label-md text-label-md text-on-surface">
+                            Facility map location <span className="text-secondary">(optional)</span>
+                          </p>
+                          <p className="font-body-sm text-body-sm text-secondary mt-1">
+                            Help patients find blood stock at your facility by distance.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={captureFacilityLocation}
+                          disabled={locating}
+                          className="shrink-0 rounded-full bg-surface-container-highest px-4 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container disabled:opacity-60"
+                        >
+                          {locating
+                            ? 'Detecting location…'
+                            : form.latitude !== null
+                            ? 'Update map location'
+                            : 'Use facility location'}
+                        </button>
+                      </div>
+                      {locationNotice && (
+                        <p className="font-body-sm text-body-sm text-secondary mt-2" role="status">
+                          {locationNotice}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
